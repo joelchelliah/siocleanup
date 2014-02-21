@@ -4,93 +4,113 @@
  # # # For cleaning up after deploying to PROD # # # # #
 #                                                       #
   DESC = <<-DESCRIPTION
-    
-    1. Merge the release branch into the master branch
-    2. Tag the last commit of the master branch
-    3. Delete the release branch
-    4. Merge the master branch into the develop branch
+
+    1. If [version/tag] is not specified, get version from pom.xml in current directory.
+    2. Merge the release branch into the master branch
+    3. Tag the last commit of the master branch with [version/tag]
+    4. Delete the release branch
+    5. Merge the master branch into the develop branch
   DESCRIPTION
 #                                                       #
  # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 def clean_up!
-  show_usage unless ARGV.size == 2
+  show_usage unless ARGV.size == 1 or ARGV.size == 2
+  version_not_specified = ARGV.size == 1
 
   master  = "master"
   develop = "develop"
   release = ARGV[0]
   version = ARGV[1]
 
+
+  version = get_version_from_pom if version_not_specified
+
   verify release, version
 
-  # 1. Merge the release branch into the master branch
-  check_out release
-  pull if branch_is_remote release
-  check_out master
-  pull
-  merge release
-
-  # 2. Tag the last commit of the master branch
+  merge release, into: master
+  
   tag version
 
-  # 3. Delete the release branch
   delete release
 
-  # 4. Merge the master branch into the develop branch
-  check_out develop
-  pull
-  merge master
+  merge master, into: develop
 
-
-  puts "\nDone!"
+  finish! "👍"
 end
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def get_version_from_pom()
+  path = "#{Dir.pwd}/pom.xml"
+  puts "\n >> Getting [version/tag] from: " << path.pink
+  unless File.exists? path
+    error_message "File does not exist", path
+    finish!
+  end
+  File.open(path) do |f|
+  f.each_line do |line|
+    m = line.match(/<version>(.*)<\/version>/)
+    return m[1] if m
+  end
+end
+  error_message "Could not find [version/tag] from", path
+  finish!
+end
 
 def verify(branch, tag)
   unless branch.include? "release" or branch.include? "hotfix"
-    puts "No! This is not a release branch. >:["
-    exit
+    error_message "No! This is not a release branch", branch
+    finish!
   end
   if (run "git tag").split("\n").inject(false) {|ans, t| ans or t === tag}
-    puts "Tag #{tag} already exists. Run 'git tag' to see which tags are already taken."
-    exit
+    error_message "This tag already exists", tag
+    info_message "Run 'git tag' to see which tags are already taken."
+    finish!
   end
 end
 
-def check_out(branch)
-  puts
-  run "git checkout #{branch}"
-end
-
-def pull
-  branch = current_branch.chomp
-  puts ">> Pulling changes from '#{branch}'"
-  run "git pull origin #{branch}"
-end
-
-def merge(branch)
-  puts "\n>> Merging '#{branch}' into '#{current_branch.chomp}'"
-  run "git merge #{branch}"
-  run "git push origin #{current_branch}"
+def merge(branch, hsh = {})
+  puts "\n >> Merging " << branch.pink << " into " << hsh[:into].pink
+  git_check_out branch
+  git_pull if is_remote branch
+  git_check_out hsh[:into]
+  git_pull
+  git_merge_and_push branch
 end
 
 def tag(version)
-  puts "\n>> Tagging the last commit of '#{current_branch.chomp}' with '#{version}'"
+  puts "\n >> Tagging the last commit of " << current_branch.chomp.pink << " with " << version.green
   run "git tag -a #{version} -m 'Release version #{version}'"
   run "git push origin #{version}"
 end
 
 def delete(branch)
-  puts "\n>> Deleting '#{branch}'"
+  puts "\n >> Deleting " << branch.pink
   run "git branch -D #{branch}"
-  run "git push origin --delete #{branch}" if branch_is_remote branch
+  run "git push origin --delete #{branch}" if is_remote branch
 end
 
-def branch_is_remote(branch)
+def git_check_out(branch)
+  puts
+  run "git checkout #{branch}"
+end
+
+def git_pull
+  branch = current_branch.chomp
+  puts ">> Pulling changes from '#{branch}'"
+  run "git pull origin #{branch}"
+end
+
+def git_merge_and_push(branch)
+  run "git merge #{branch}"
+  run "git push origin #{current_branch}"
+end
+
+def is_remote(branch)
   (run "git branch -r").split("\n").inject(false) {|ans, b| ans or b.include? branch}
 end
 
@@ -102,14 +122,28 @@ def run(command)
   res = %x[ #{command} ]
   unless $?.exitstatus === 0
     if command == "git merge master"
-      puts "Failed merging master into develop branch (probably due to conflicts)."
-      puts "Resolve conflicts and commit manually to complete clean up."
+      error_message "Failed merging master into develop branch", "probably due to conflicts"
+      info_message "Resolve conflicts and commit manually to complete clean up."
     else
-      puts "Operation failed while doing: '#{command}'. Do the rest of the clean up manually."
+      error_message "Operation failed while doing", command
+      info_message "Do the rest of the clean up manually."
     end
-    exit
+    finish!
   end
   res
+end
+
+def info_message(text)
+  puts "     > #{text}"
+end
+
+def error_message(text, reason)
+  puts "   !> #{text}: [ ".red << "#{reason}" << " ]".red
+end
+
+def finish!(status="👎")
+  puts "\n >> Done " << status
+  exit
 end
 
 def show_usage
