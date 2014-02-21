@@ -136,9 +136,9 @@ end
 
 def info_message(text, reason = nil)
   if reason
-    puts "     > #{text}: [ ".yellow << reason.green << " ]".yellow
+    puts "    > #{text}: [ ".yellow << reason.green << " ]".yellow
   else
-    puts "     > #{text}"
+    puts "    > #{text}"
   end
 end
 
