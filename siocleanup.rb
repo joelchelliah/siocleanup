@@ -84,30 +84,31 @@ end
 
 def tag(version)
   puts "\n >> Tagging the last commit of " << current_branch.chomp.pink << " with " << version.green
-  run "git tag -a #{version} -m 'Release version #{version}'"
-  run "git push origin #{version}"
+  run "git tag -a #{version} -m 'Release version #{version}' -q"
+  run "git push origin #{version} -q"
 end
 
 def delete(branch)
   puts "\n >> Deleting " << branch.pink
-  run "git branch -D #{branch}"
-  run "git push origin --delete #{branch}" if is_remote branch
+  run "git branch -D #{branch} -q"
+  run "git push origin --delete #{branch} -q" if is_remote branch
 end
 
 def git_check_out(branch)
-  puts
-  run "git checkout #{branch}"
+  info_message "Checking out", branch
+  run "git checkout #{branch} -q"
 end
 
 def git_pull
   branch = current_branch.chomp
-  puts ">> Pulling changes from '#{branch}'"
-  run "git pull origin #{branch}"
+  info_message "Pulling changes from", branch
+  run "git pull origin #{branch} -q"
 end
 
 def git_merge_and_push(branch)
-  run "git merge #{branch}"
-  run "git push origin #{current_branch}"
+  info_message "Merging", "#{branch} -> #{current_branch}"
+  run "git merge #{branch} -q"
+  run "git push origin #{current_branch} -q"
 end
 
 def is_remote(branch)
@@ -133,8 +134,12 @@ def run(command)
   res
 end
 
-def info_message(text)
-  puts "     > #{text}"
+def info_message(text, reason = nil)
+  if reason
+    puts "     > #{text}: [ ".yellow << reason.green << " ]".yellow
+  else
+    puts "     > #{text}"
+  end
 end
 
 def error_message(text, reason)
