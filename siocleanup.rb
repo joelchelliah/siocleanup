@@ -84,8 +84,8 @@ end
 
 def tag(version)
   puts "\n >> Tagging the last commit of " << current_branch.chomp.pink << " with " << version.green
-  run "git tag -a #{version} -m 'Release version #{version}' -q"
-  run "git push origin #{version} -q"
+  run "git tag -a #{version} -m 'Release version #{version}'"
+  run "git push -q origin #{version}"
 end
 
 def delete(branch)
@@ -106,9 +106,9 @@ def git_pull
 end
 
 def git_merge_and_push(branch)
-  info_message "Merging", "#{branch} -> #{current_branch}"
+  info_message "Merging", "#{branch} -> #{current_branch.chomp}"
   run "git merge #{branch} -q"
-  run "git push origin #{current_branch} -q"
+  run "git push -q origin #{current_branch}"
 end
 
 def is_remote(branch)
