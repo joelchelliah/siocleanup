@@ -124,7 +124,7 @@ def run(command)
   unless $?.exitstatus === 0
     if command.include? "git merge master"
       error_message "Failed merging master into develop branch", "probably due to conflicts"
-      info_message "Resolve conflicts and commit manually to complete clean up."
+      info_message "Resolve conflicts and commit to develop to complete clean-up."
     else
       error_message "Operation failed while doing", command
       info_message "Do the rest of the clean up manually."
