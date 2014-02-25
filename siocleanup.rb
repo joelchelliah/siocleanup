@@ -67,7 +67,8 @@ end
 end
 
 def verify(hsh = {})
-  if hsh[:release_branch] and not (branch.include? "release" or branch.include? "hotfix")
+  branch = hsh[:release_branch]
+  if branch and not (branch.include? "release" or branch.include? "hotfix")
     error_message "No! This is not a release branch", branch
     finish!
   elsif hsh[:version_or_tag] and (run "git tag").split("\n").inject(false) {|ans, t| ans or t === tag}
