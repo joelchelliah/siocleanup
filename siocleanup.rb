@@ -5,11 +5,12 @@
 #                                                       #
   DESC = <<-DESCRIPTION
 
-    1. If [version/tag] is not specified, get version from pom.xml in current directory.
-    2. Merge the release branch into the master branch
-    3. Tag the last commit of the master branch with [version/tag]
-    4. Delete the release branch
-    5. Merge the master branch into the develop branch
+    1. Check out the release branch
+    2. If [version/tag] is not specified, get version from pom.xml in current directory.
+    3. Merge the release branch into the master branch
+    4. Tag the last commit of the master branch with [version/tag]
+    5. Delete the release branch
+    6. Merge the master branch into the develop branch
   DESCRIPTION
 #                                                       #
  # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -23,18 +24,21 @@ def clean_up!
   release = ARGV[0]
   version = ARGV[1]
 
+  verify :release_branch => release
+
+  git_check_out release
 
   version = get_version_from_pom if version_not_specified
 
-  verify release, version
+  verify :version_or_tag => version
 
-  merge release, into: master
+  merge release, :into => master
   
   tag version
 
   delete release
 
-  merge master, into: develop
+  merge master, :into => develop
 
   finish! "👍"
 end
@@ -43,6 +47,7 @@ end
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 
 def get_version_from_pom()
   path = "#{Dir.pwd}/pom.xml"
@@ -61,15 +66,16 @@ end
   finish!
 end
 
-def verify(branch, tag)
-  unless branch.include? "release" or branch.include? "hotfix"
+def verify(hsh = {})
+  if hsh[:release_branch] and not (branch.include? "release" or branch.include? "hotfix")
     error_message "No! This is not a release branch", branch
     finish!
-  end
-  if (run "git tag").split("\n").inject(false) {|ans, t| ans or t === tag}
+  elsif hsh[:version_or_tag] and (run "git tag").split("\n").inject(false) {|ans, t| ans or t === tag}
     error_message "This tag already exists", tag
     info_message "Run 'git tag' to see which tags are already taken."
     finish!
+  else
+    error_message "Invalid verify command", hsh.to_s
   end
 end
 
@@ -95,8 +101,10 @@ def delete(branch)
 end
 
 def git_check_out(branch)
-  info_message "Checking out", branch
-  run "git checkout #{branch} -q"
+  unless current_branch.include? branch
+    info_message "Checking out", branch
+    run "git checkout #{branch} -q"
+  end
 end
 
 def git_pull
