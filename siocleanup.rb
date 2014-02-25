@@ -24,13 +24,13 @@ def clean_up!
   release = ARGV[0]
   version = ARGV[1]
 
-  verify :release_branch => release
+  verify_release_branch(release)
 
   git_check_out release
 
   version = get_version_from_pom if version_not_specified
 
-  verify :version_or_tag => version
+  verify_tag(version)
 
   merge release, :into => master
   
@@ -66,19 +66,18 @@ end
   finish!
 end
 
-def verify(hsh = {})
-  if hsh[:release_branch]
-    branch = hsh[:release_branch]
-    unless (branch.include? "release" or branch.include? "hotfix")
-      error_message "No! This is not a release branch", branch
-      finish!
-    end
-  elsif hsh[:version_or_tag] and (run "git tag").split("\n").inject(false) {|ans, t| ans or t === tag}
-    error_message "This tag already exists", tag
+def verify_release_branch(branch)
+  unless (branch.include? "release" or branch.include? "hotfix")
+    error_message "No! This is not a release branch", branch
+    finish!
+  end
+end
+
+def verify_tag(version)
+  if (run "git tag").split("\n").inject(false) {|ans, t| ans or t === version}
+    error_message "This tag already exists", version
     info_message "Run 'git tag' to see which tags are already taken."
     finish!
-  else
-    error_message "Invalid verify command", hsh.to_s
   end
 end
 
